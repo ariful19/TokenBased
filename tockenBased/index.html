@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <div ng-app="app" ng-controller="ctrl" ng-init="n={}">
+        <div>
+            <input type="text" ng-model="n.name" />
+            <input type="number" ng-model="n.age" />
+            <input type="text" ng-model="n.address" />
+            <input type="password" ng-model="n.p1" />
+            <input type="password" ng-model="n.p2" />
+            <input type="button" value="save" ng-click="save()" />
+        </div>
+        <hr />
+        <div>
+            <input type="text" ng-model="userId" />
+            <input type="password" ng-model="password" />
+            <input type="button" value="Login" ng-click="Login()" />
+            <div>{{msg}}</div>
+        </div>
+
+        <hr />
+        <div>
+            <input type="button" value="isExpired" ng-click="isExpired()" />
+            <input type="button" value="User Check" ng-click="UserCheck()" />
+        </div>
+    </div>
+    <script src="Scripts/angular.min.js"></script>
+    <script>
+        angular.module("app", [])
+            .controller('ctrl', function ($scope, $http, $interval) {
+                let s = $scope;
+                s.time = 20;
+                s.save = () => {
+                    $http.post("/api/saveUser", s.n)
+                        .then(r => {
+                            alert("saved");
+                        })
+                }
+
+                s.Login = () => {
+                    $http.post("/api/Login", { user: s.userId, password: s.password })
+                        .then(r => {
+                            let token = r.data.token;
+                            if (token.length > 3) {
+                                sessionStorage.setItem('token', token);
+                                s.msg = "logged in";
+                                s.resetTimer();
+                            }
+                        })
+                }
+
+                s.resetTimer = () => {
+                    if (angular.isDefined(s.interval)) $interval.cancel(s.interval);
+                    s.time = 20;
+                    s.interval = $interval(() => s.msg = "expires in " + (s.time--) + "s", 1000);
+                }
+                s.isExpired = () => {
+                    let header = "Token:" + sessionStorage.getItem("token");
+                    $http({
+                        method: 'GET',
+                        url: "/api/isExpired",
+                        headers: { 'Token': sessionStorage.getItem("token") }
+                    }).then(r => {
+                        if (r.headers("Token")) {
+                            sessionStorage.setItem('token', r.headers("Token"))
+                            s.resetTimer();
+                        };
+                        s.msg = "Not Expired";
+                    }, r => {
+                        s.msg = "Expired";
+                        if (angular.isDefined(s.interval)) $interval.cancel(s.interval);
+                    })
+                }
+                s.UserCheck = () => {
+                    let header = "Token:" + sessionStorage.getItem("token");
+                    $http({
+                        method: 'GET',
+                        url: "/api/CanAccessA",
+                        headers: { 'Token': sessionStorage.getItem("token") }
+                    }).then(r => {
+                        if (r.headers("Token")) {
+                            sessionStorage.setItem('token', r.headers("Token"))
+                            s.resetTimer();
+                        };
+                        s.msg = "Not Expired";
+                    }, r => {
+                        s.msg = "Wrong User";
+                        if (angular.isDefined(s.interval)) $interval.cancel(s.interval);
+                    })
+                }
+            });
+    </script>
+</body>
+</html>
